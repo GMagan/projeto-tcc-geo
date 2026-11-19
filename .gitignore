@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.deepeval/
+*.pyc
+
+# dados do usuário e tudo o que é gerado a partir deles
+dados/entrada/*
+!dados/entrada/.gitkeep
+dados/processados/
+dados/catalogo.yaml
+resultados/

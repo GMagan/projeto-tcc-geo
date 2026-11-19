@@ -1,0 +1,101 @@
+{
+  "fonte": "Vetorizado das Figuras 3 a 8 do Plano de Manejo do Parque Estadual de Santa Clara (IAT, 2026) por scripts/vetorizar_zoneamento.py",
+  "crs": "EPSG:31982",
+  "figuras": {
+    "fig3_zonas": {
+      "pagina_pdf": 29,
+      "pixel_m": 4.865,
+      "residuo_max_grade_m": 3.24
+    },
+    "fig4_zc": {
+      "pagina_pdf": 30,
+      "pixel_m": 5.003,
+      "residuo_max_grade_m": 0.83
+    },
+    "fig5_zaa": {
+      "pagina_pdf": 32,
+      "pixel_m": 4.818,
+      "residuo_max_grade_m": 1.61
+    },
+    "fig6_zi": {
+      "pagina_pdf": 34,
+      "pixel_m": 4.832,
+      "residuo_max_grade_m": 1.21
+    },
+    "fig7_zdip": {
+      "pagina_pdf": 35,
+      "pixel_m": 4.831,
+      "residuo_max_grade_m": 1.61
+    },
+    "fig8_za": {
+      "pagina_pdf": 37,
+      "pixel_m": 8.401,
+      "residuo_max_grade_m": 4.2
+    }
+  },
+  "limite_uc": {
+    "area_ha": 616.66,
+    "perimetro_km": 13.85,
+    "incerteza_ha": 6.93,
+    "espessura_traco_m": 28.0,
+    "pontes_sobre_oclusoes_m": [
+      29.7,
+      40.2,
+      87.2
+    ],
+    "area_por_figura_ha": {
+      "fig3_zonas": 616.94,
+      "fig4_zc": 616.82,
+      "fig5_zaa": 616.79,
+      "fig6_zi": 615.84,
+      "fig7_zdip": 615.53
+    },
+    "desvio_padrao_entre_figuras_ha": 0.65
+  },
+  "zonas": {
+    "ZC": {
+      "area_ha": 555.72,
+      "perimetro_km": 32.14,
+      "incerteza_ha": 16.08
+    },
+    "ZAA": {
+      "area_ha": 55.99,
+      "perimetro_km": 13.02,
+      "incerteza_ha": 6.52,
+      "area_pela_fig3_ha": 52.26
+    },
+    "ZI": {
+      "area_ha": 2.97,
+      "perimetro_km": 2.77,
+      "incerteza_ha": 1.38
+    },
+    "ZDIP": {
+      "area_ha": 1.97,
+      "perimetro_km": 2.86,
+      "incerteza_ha": 1.43
+    }
+  },
+  "zona_amortecimento": {
+    "area_ha": 1625.64,
+    "perimetro_km": 45.82,
+    "incerteza_ha": 38.49,
+    "area_com_a_uc_ha": 2242.3,
+    "espessura_traco_m": 43.1,
+    "pontes_sobre_oclusoes_m": [
+      45.3,
+      56.6,
+      56.9,
+      68.0,
+      75.2,
+      113.7,
+      201.0,
+      205.7,
+      210.4,
+      215.4,
+      224.3,
+      231.2,
+      246.1,
+      289.7
+    ]
+  }
+}

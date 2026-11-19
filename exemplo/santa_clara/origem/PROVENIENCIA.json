@@ -1,0 +1,40 @@
+{
+  "geobr_ucs": {
+    "arquivo": "dados/brutos/geobr_ucs/conservation_units_201909.gpkg",
+    "origem": "https://www.ipea.gov.br/geobr/data_gpkg/conservation_units/201909/conservation_units_201909.gpkg",
+    "descricao": "Unidades de conservação do CNUC/MMA (set. 2019), redistribuídas pelo geobr/IPEA",
+    "licenca": "Dados públicos do MMA; pacote geobr sob licença MIT",
+    "bytes": 48230400,
+    "sha256": "992a87389ca68557463e17816b72f5b3f757144790b647c5e24493e94b71e2da",
+    "obtido_em": "2026-11-16"
+  },
+  "ibge_municipios_pr": {
+    "arquivo": "dados/brutos/ibge_municipios_pr/PR_Municipios_2024.zip",
+    "origem": "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2024/UFs/PR/PR_Municipios_2024.zip",
+    "descricao": "Malha municipal do Paraná, IBGE 2024 (escala 1:250.000)",
+    "licenca": "Dados públicos do IBGE, uso livre com citação da fonte",
+    "bytes": 4986360,
+    "sha256": "39c3171721fc5f791537af60644345cd985b36b4e407b154e6794ce0bebe4bdd",
+    "obtido_em": "2026-11-16"
+  },
+  "esa_worldcover": {
+    "arquivo": "dados/brutos/esa_worldcover/ESA_WorldCover_10m_2021_v200_S27W054_Map.tif",
+    "origem": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_S27W054_Map.tif",
+    "descricao": "ESA WorldCover 10 m, 2021, v200 (recorte do retângulo de trabalho)",
+    "licenca": "CC BY 4.0 (ESA WorldCover project 2021)",
+    "bytes": 137438,
+    "sha256": "5097ce02eca46312f79e4ea04784f5f334caa8d837af6751517e3c7690f7a0fe",
+    "obtido_em": "2026-11-16"
+  },
+  "osm": {
+    "arquivo": "dados/brutos/osm/overpass_pesc.json",
+    "origem": "https://overpass.kumi.systems/api/interpreter",
+    "descricao": "OpenStreetMap: vias, hidrografia, edificações e pontos de interesse",
+    "licenca": "ODbL 1.0 (© colaboradores do OpenStreetMap)",
+    "bytes": 606697,
+    "sha256": "2b7e6c2ad87d980a13270ebcbc9bd6eb46ed8a253ebff86c71ee7344c9a1f344",
+    "obtido_em": "2026-11-16",
+    "consulta": "[out:json][timeout:90];\n(\n  way[\"highway\"](-25.72,-52.06,-25.58,-51.88);\n  way[\"waterway\"](-25.72,-52.06,-25.58,-51.88);\n  way[\"natural\"=\"water\"](-25.72,-52.06,-25.58,-51.88);\n  way[\"building\"](-25.72,-52.06,-25.58,-51.88);\n  way[\"power\"=\"line\"](-25.72,-52.06,-25.58,-51.88);\n  node[\"tourism\"](-25.72,-52.06,-25.58,-51.88);\n);\nout body geom;",
+    "base_osm_em": "2026-07-24T11:04:51Z"
+  }
+}

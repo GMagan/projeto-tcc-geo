@@ -1,0 +1,19 @@
+# Números publicados no plano de manejo, para comparar com os calculados.
+# IAT (2026), Plano de Manejo do Parque Estadual de Santa Clara, rev. 03.
+area_uc_ha: 616.86            # texto abaixo da Tabela 1 (área georreferenciada)
+perimetro_km: 13.77           # Tabela 1
+municipios_percentual:        # Tabela 1
+  Candói: 51
+  Foz do Jordão: 17
+  Pinhão: 32
+extremos:                     # Tabela 1: a coordenada que define cada extremo
+  norte_lat: "25° 37' 46,846\""
+  sul_lat: "25° 39' 38,925\""
+  leste_lon: "51° 57' 6,538\""
+  oeste_lon: "51° 59' 22,879\""
+zonas_ha:                     # Tabela 6
+  ZC: 538.37
+  ZAA: 70.42
+  ZDIP: 2.59
+  ZI: 5.48
+zona_amortecimento_ha: 1622.48  # Tabela 6

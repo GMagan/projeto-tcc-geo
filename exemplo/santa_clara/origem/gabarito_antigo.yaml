@@ -1,0 +1,29 @@
+# Gabarito numérico: valores publicados no plano de manejo real.
+#
+# IAT (2026). Plano de Manejo do Parque Estadual de Santa Clara, rev. 03.
+# Cada valor traz a página do plano de onde foi copiado.
+
+fonte: "IAT (2026), Plano de Manejo do Parque Estadual de Santa Clara, rev. 03"
+
+ficha_tecnica:            # Tabela 1 (p. 17 do plano)
+  superficie_decreto_ha: 631.58
+  superficie_georreferenciada_ha: 616.86   # texto abaixo da Tabela 1 e total da Tabela 6
+  perimetro_km: 13.77
+  municipios_percentual:
+    Candói: 51
+    Foz do Jordão: 17
+    Pinhão: 32
+  extremos:               # a tabela dá "longitude / latitude"; aqui só a coordenada que define cada extremo
+    norte_lat: "25° 37' 46,846\""
+    sul_lat: "25° 39' 38,925\""
+    leste_lon: "51° 57' 6,538\""
+    oeste_lon: "51° 59' 22,879\""
+
+zoneamento:               # Tabela 6 (p. 36 do plano)
+  ZC:   {area_ha: 538.37, percentual: 87.28}
+  ZAA:  {area_ha: 70.42,  percentual: 11.41}
+  ZDIP: {area_ha: 2.59,   percentual: 0.42}
+  ZI:   {area_ha: 5.48,   percentual: 0.89}
+  total_ha: 616.86
+
+zona_amortecimento_ha: 1622.48   # Tabela 6 (p. 36 do plano)

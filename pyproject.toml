@@ -1,0 +1,20 @@
+[project]
+name = "projeto-tcc-geo"
+version = "0.1.0"
+description = "Agentes de IA com ferramentas determinísticas (MCP) para apoiar a elaboração de planos de manejo"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["evals"]
+pythonpath = ["mcp-python", "."]
+addopts = "-ra"
+markers = [
+    "dados: usa a base real em dados/processados (rode scripts/preparar_base.py antes)",
+    "llm: precisa de um modelo de linguagem em execução (OLLAMA_URL ou LLM_BASE_URL)",
+]
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error::DeprecationWarning:geotools.*",
+    "ignore::DeprecationWarning:deepeval.*",
+    "ignore::SyntaxWarning",
+]
