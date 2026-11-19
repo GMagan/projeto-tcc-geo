@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-import requests
+import httpx
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
@@ -58,9 +58,9 @@ def main() -> None:
         if args.simular:
             print(f"[simulação] {dados['id']}: {dados['name']} ({len(dados['params']['system'])} caracteres de prompt)")
             continue
-        resposta = requests.post(f"{url}/api/v1/models/model/update", params={"id": dados["id"]}, headers=cabecalhos, json=dados, timeout=30)
+        resposta = httpx.post(f"{url}/api/v1/models/model/update", params={"id": dados["id"]}, headers=cabecalhos, json=dados, timeout=30)
         if resposta.status_code in (400, 401, 404):  # ainda não existe: cria
-            resposta = requests.post(f"{url}/api/v1/models/create", headers=cabecalhos, json=dados, timeout=30)
+            resposta = httpx.post(f"{url}/api/v1/models/create", headers=cabecalhos, json=dados, timeout=30)
         resposta.raise_for_status()
         print(f"[ok] {dados['id']}")
 

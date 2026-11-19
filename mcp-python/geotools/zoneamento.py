@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pyproj import Transformer
 from shapely.geometry import Point
+from shapely.ops import nearest_points
 
 from .catalogo import Catalogo
 from .erros import ErroGeo
@@ -68,7 +69,9 @@ def zona_da_coordenada(cat: Catalogo, lon: float, lat: float) -> dict:
         raise ErroGeo(f"coordenada impossível (lon={lon}, lat={lat}): use graus decimais, lon entre -180 e 180 e lat entre -90 e 90")
     limite = cat.ler("limite_uc").geometry.union_all()
     centro = para_geografico(limite.centroid, cat.epsg)
-    afastamento = GEOD.inv(lon, lat, centro.x, centro.y)[2]
+    # distância à borda, não ao centro: UC da Amazônia tem centenas de km de lado
+    perto = nearest_points(para_geografico(limite, cat.epsg), Point(lon, lat))[0]
+    afastamento = GEOD.inv(lon, lat, perto.x, perto.y)[2]
     saida = {
         "status": "sucesso",
         "ferramenta": "zona_da_coordenada",
@@ -80,7 +83,7 @@ def zona_da_coordenada(cat: Catalogo, lon: float, lat: float) -> dict:
         "sigla": None,
         "zona": None,
         "dentro_da_zona_de_amortecimento": False,
-        "distancia_ao_limite_da_uc_m": round(afastamento, 2),
+        "distancia_ao_limite_da_uc_m": None,  # longe demais: só o aviso, com a distância ao centro
         "aviso": None,
         "crs_calculo": cat.crs,
     }

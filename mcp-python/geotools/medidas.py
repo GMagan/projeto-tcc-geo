@@ -15,6 +15,13 @@ def ha(m2: float) -> float:
     return round(float(m2) / 1e4, 2)
 
 
+def br(valor, casas: int = 2) -> str:
+    """1622.48 -> '1.622,48' (padrão brasileiro); None -> '---'."""
+    if valor is None:
+        return "---"
+    return f"{valor:,.{casas}f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
 def km(m: float) -> float:
     return round(float(m) / 1e3, 2)
 
@@ -74,20 +81,22 @@ def coordenadas_extremas(cat: Catalogo, camada: str, feicao: str = "") -> dict:
     extremos = {}
     for nome, (lon, lat) in escolhas.items():
         lon, lat = round(float(lon), 7), round(float(lat), 7)
-        # norte e sul são definidos pela latitude; leste e oeste, pela longitude
-        definidora = f"{graus_para_gms(lat)} S" if nome in ("norte", "sul") else f"{graus_para_gms(lon)} O"
+        # graus_para_gms tira o sinal: o hemisfério vai na letra (UCs ao norte do equador existem)
+        gms_lon = f"{graus_para_gms(lon)} {'L' if lon >= 0 else 'O'}"
+        gms_lat = f"{graus_para_gms(lat)} {'N' if lat >= 0 else 'S'}"
         extremos[nome] = {
             "lon": lon,
             "lat": lat,
-            "gms": f"{graus_para_gms(lon)} / {graus_para_gms(lat)}",
-            "coordenada_extrema": definidora,
+            "gms": f"{gms_lon} / {gms_lat}",
+            # norte e sul são definidos pela latitude; leste e oeste, pela longitude
+            "coordenada_extrema": gms_lat if nome in ("norte", "sul") else gms_lon,
         }
     return {
         "status": "sucesso",
         "ferramenta": "coordenadas_extremas",
         "camada": camada,
         **extremos,
-        "formato_gms": "longitude oeste / latitude sul",
+        "formato_gms": "longitude (L/O) / latitude (N/S)",
         "crs": f"EPSG:{EPSG_GEOGRAFICO} (SIRGAS 2000)",
         **cat.procedencia(camada),
     }
@@ -97,13 +106,13 @@ def municipios_intersectados(cat: Catalogo, camada: str = "limite_uc", camada_mu
     """Municípios que a camada toca, com a área (ha) e a fração (%) em cada um."""
     alvo = cat.ler(camada).geometry.union_all()
     campo = cat.meta(camada_municipios).get("campo_nome", "nome")
-    linhas = []
+    linhas, coberta = [], 0.0
     for _, mun in cat.ler(camada_municipios).iterrows():
         parte = alvo.intersection(mun.geometry).area
+        coberta += parte
         if parte > 0:
             linhas.append({"municipio": mun[campo], "area_ha": ha(parte), "percentual": round(100 * parte / alvo.area, 2)})
     linhas.sort(key=lambda m: -m["area_ha"])
-    coberta = sum(alvo.intersection(g).area for g in cat.ler(camada_municipios).geometry)
     return {
         "status": "sucesso",
         "ferramenta": "municipios_intersectados",

@@ -24,22 +24,21 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RAIZ / "mcp-python"), str(RAIZ / "evals")]
 
 import geotools as gt  # noqa: E402
-from comparacao import carregar_gabarito, comparar  # noqa: E402
+from geotools import br  # noqa: E402
+from comparacao import ErroGabarito, carregar_gabarito, comparar  # noqa: E402
 
 SAIDA = RAIZ / "resultados"
 DADOS = SAIDA / "tabelas" / "dados"
 
 
-def br(valor, casas: int = 2) -> str:
-    """1622.48 -> '1.622,48'."""
-    if valor is None:
-        return "---"
-    return f"{valor:,.{casas}f}".replace(",", "@").replace(".", ",").replace("@", ".")
-
-
 def rodar_testes() -> dict:
     xml = SAIDA / "pytest.xml"
-    subprocess.run([sys.executable, "-m", "pytest", "-q", f"--junitxml={xml}", "-p", "no:cacheprovider"], cwd=RAIZ, capture_output=True, check=False)
+    xml.unlink(missing_ok=True)  # xml velho de outra rodada não pode passar por resultado desta
+    rodada = subprocess.run([sys.executable, "-m", "pytest", "-q", f"--junitxml={xml}", "-p", "no:cacheprovider"],
+                            cwd=RAIZ, capture_output=True, text=True, check=False)
+    if not xml.exists():
+        print(f"aviso: os testes não rodaram:\n{(rodada.stdout + rodada.stderr)[-2000:]}")
+        return {"nao_rodou": 1}
     contagem = Counter()
     for caso in ET.parse(xml).getroot().iter("testcase"):
         if caso.find("failure") is not None or caso.find("error") is not None:
@@ -59,6 +58,17 @@ def projecao(cat: gt.Catalogo) -> dict:
     geodesica = gt.calcular_area(cat, "limite_uc")["area_geodesica_ha"]
     return {"utm_ha": utm, "geodesica_ha": geodesica, "mercator_ha": mercator,
             "erro_utm_pct": 100 * (utm - geodesica) / geodesica, "erro_mercator_pct": 100 * (mercator - geodesica) / geodesica}
+
+
+def uso_solo_por_area(cat: gt.Catalogo, alvos: dict[str, tuple[str, str]]) -> dict:
+    """Uso do solo de cada área; a que o raster não cobre (raster recortado na UC e a ZA, por exemplo) fica de fora com aviso."""
+    saida = {}
+    for nome, (camada, feicao) in alvos.items():
+        try:
+            saida[nome] = gt.uso_solo_na_area(cat, camada, feicao)
+        except gt.ErroGeo as erro:
+            print(f"aviso: {nome} sem uso do solo: {erro}")
+    return saida
 
 
 def main() -> None:
@@ -102,7 +112,7 @@ def main() -> None:
         alvos = {"UC": ("limite_uc", "")} | {z["sigla"]: ("zoneamento", z["sigla"]) for z in r["zonas"]["zonas"]}
         if tem("zona_amortecimento"):
             alvos["ZA"] = ("zona_amortecimento", "")
-        r["uso_solo"] = {nome: gt.uso_solo_na_area(cat, camada, feicao) for nome, (camada, feicao) in alvos.items()}
+        r["uso_solo"] = uso_solo_por_area(cat, alvos)
         tabela("uso_solo", ["Área", "Classe", "Área (ha)", "%"],
                [[nome, c["classe"], br(c["area_ha"]), br(c["percentual"], 1)] for nome, u in r["uso_solo"].items() for c in u["classes"]])
 
@@ -113,7 +123,11 @@ def main() -> None:
         [f"UTM (EPSG:{cat.epsg})", br(p["utm_ha"]), f"{br(p['erro_utm_pct'], 3)} %"],
         ["Web Mercator (EPSG:3857)", br(p["mercator_ha"]), f"{br(p['erro_mercator_pct'], 2)} %"]])
 
-    r["gabarito"] = comparar(cat, carregar_gabarito(cat))
+    try:
+        r["gabarito"] = comparar(cat, carregar_gabarito(cat))
+    except ErroGabarito as erro:  # um erro no gabarito do usuário não bloqueia o resto dos resultados
+        print(f"aviso: gabarito.yaml ignorado: {erro}")
+        r["gabarito"] = []
     if r["gabarito"]:
         tabela("gabarito", ["Grandeza", "Plano", "Calculado", "Erro", "Tolerância", "Bate?"], [
             [f"{l['grandeza']} ({l['unidade']})", br(l["plano"], 3), br(l["plataforma"], 3), br(l["erro"], 3), br(l["tolerancia"], 4),

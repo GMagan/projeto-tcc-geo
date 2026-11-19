@@ -11,10 +11,10 @@ Variáveis de ambiente:
   GEO_SAIDAS     pasta dos mapas gerados          (padrão: ../resultados/mapas)
   GEO_AUDITORIA  arquivo JSONL das chamadas       (padrão: ../resultados/auditoria_tools.jsonl)
   MCP_TRANSPORT  stdio | streamable-http | sse    (padrão: streamable-http)
-  MCP_HOST, MCP_PORT                              (padrão: 0.0.0.0, 8001)
+  MCP_HOST, MCP_PORT                              (padrão: 127.0.0.1, 8001)
 
 Uso:
-  python server.py                      # HTTP em http://0.0.0.0:8001/mcp
+  python server.py                      # HTTP em http://127.0.0.1:8001/mcp
   MCP_TRANSPORT=stdio python server.py  # para clientes que iniciam o processo
 """
 from __future__ import annotations
@@ -55,6 +55,7 @@ def criar_servidor(
         """Roda a função do motor; erro de uso volta como mensagem para o agente corrigir."""
         inicio = time.perf_counter()
         try:
+            cat.recarregar_se_mudou()
             resultado = funcao(**argumentos)
         except gt.ErroGeo as erro:
             resultado = {"status": "erro", "ferramenta": nome, "mensagem": str(erro)}
@@ -196,4 +197,4 @@ if __name__ == "__main__":
     if transporte == "stdio":
         servidor.run("stdio")
     else:
-        servidor.run(transporte, host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8001")))
+        servidor.run(transporte, host=os.environ.get("MCP_HOST", "127.0.0.1"), port=int(os.environ.get("MCP_PORT", "8001")))

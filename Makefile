@@ -5,7 +5,7 @@ ENV := .venv/.instalado  # marca que as dependências estão instaladas
 LLM_BASE_URL ?= http://localhost:11434/v1
 LLM_MODELO ?= qwen2.5:7b
 
-.PHONY: rodar ajuda importar testes resultados exemplo servidor avaliar-llm avaliar-baseline juiz-llm sync subir diagramas
+.PHONY: rodar ajuda importar ia testes resultados exemplo servidor avaliar-llm avaliar-baseline juiz-llm sync subir diagramas
 
 rodar: $(ENV) importar ## (padrão) importa dados/entrada, testa e gera os resultados
 	$(MAKE) --no-print-directory resultados
@@ -22,6 +22,10 @@ ajuda:
 
 importar: $(ENV) ## lê dados/entrada/ (pergunta o que faltar)
 	$(PY) scripts/importar_dados.py
+
+ia: $(ENV) ## modo IA: a IA identifica os arquivos de dados/entrada/ (precisa de Ollama), depois igual ao `make`
+	LLM_BASE_URL=$(LLM_BASE_URL) LLM_MODELO=$(LLM_MODELO) $(PY) scripts/importar_com_ia.py
+	$(MAKE) --no-print-directory resultados
 
 testes: $(ENV) ## roda os testes do programa
 	$(PY) -m pytest -q -p no:cacheprovider
@@ -45,6 +49,7 @@ avaliar-baseline: $(ENV) ## mesma avaliação, modelo sem tools
 	$(PY) evals/rodar_agente.py --base-url $(LLM_BASE_URL) --modelo $(LLM_MODELO) --condicao sem_tools
 
 juiz-llm: $(ENV) ## juiz por modelo (DeepEval); defina JUIZ_MODELO
+	$(PY) -m pip install -q -r requirements-juiz.txt
 	$(PY) -m pytest evals/test_llm_quality.py -m llm
 
 sync: $(ENV) ## publica as skills no Open WebUI

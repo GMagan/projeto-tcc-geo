@@ -8,7 +8,7 @@ from .base import carregar_camada, listar_camadas, reprojetar, validar_geometria
 from .catalogo import Catalogo
 from .erros import ErroGeo
 from .mapas import gerar_mapa
-from .medidas import calcular_area, coordenadas_extremas, graus_para_gms, municipios_intersectados
+from .medidas import br, calcular_area, coordenadas_extremas, graus_para_gms, municipios_intersectados
 from .rag import IndiceBM25, consultar_roteiro
 from .sobreposicao import (
     buffer_geodesico,
@@ -24,6 +24,7 @@ __all__ = [
     "Catalogo",
     "ErroGeo",
     "IndiceBM25",
+    "br",
     "buffer_geodesico",
     "calcular_area",
     "calcular_area_zonas",

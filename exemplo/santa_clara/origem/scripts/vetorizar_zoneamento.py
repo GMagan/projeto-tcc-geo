@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Registro histórico: precisa de scipy, scikit-image e pillow, que o projeto não instala.
 """Vetoriza o zoneamento do PESC a partir das figuras do plano de manejo.
 
 DADO PROVISÓRIO. O shapefile oficial do zoneamento (IAT/STCP) não é público.

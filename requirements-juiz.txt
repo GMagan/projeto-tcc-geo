@@ -1,0 +1,2 @@
+# Só para `make juiz-llm` (juiz LLM, evals/test_llm_quality.py): ~60 pacotes a mais
+deepeval>=4.3

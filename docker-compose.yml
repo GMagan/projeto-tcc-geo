@@ -1,7 +1,6 @@
 # Orquestração local do projeto.
 #
 #   docker compose up -d                       # interface (Open WebUI) + motor espacial (MCP)
-#   docker compose --profile telemetria up -d  # idem + Langfuse (rastros)
 #
 # O Ollama roda fora do compose (na própria máquina ou em um servidor com GPU):
 # aponte OLLAMA_URL no arquivo .env.
@@ -12,7 +11,7 @@
 
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.6.31  # versão fixa: :main muda todo dia
     container_name: open-webui
     ports:
       - "8080:8080"
@@ -35,7 +34,7 @@ services:
       dockerfile: mcp-python/Dockerfile
     container_name: mcp-python
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"  # só esta máquina; o Open WebUI usa a rede interna geo-net
     environment:
       - MCP_TRANSPORT=streamable-http
       - MCP_HOST=0.0.0.0
@@ -51,49 +50,9 @@ services:
     networks: [geo-net]
     restart: unless-stopped
 
-  # Telemetria (opcional). Langfuse 2 pede só Postgres e cabe em um notebook.
-  # As versões 3 e 4 exigem também ClickHouse, Redis e armazenamento S3: para
-  # elas, use o docker-compose oficial do Langfuse em vez deste perfil.
-  langfuse:
-    image: langfuse/langfuse:2
-    container_name: langfuse
-    profiles: [telemetria]
-    ports:
-      - "3000:3000"
-    depends_on:
-      langfuse-db:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql://postgres:${LANGFUSE_DB_PASSWORD:?defina LANGFUSE_DB_PASSWORD no .env}@langfuse-db:5432/postgres
-      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:?defina LANGFUSE_NEXTAUTH_SECRET no .env}
-      - SALT=${LANGFUSE_SALT:?defina LANGFUSE_SALT no .env}
-      - NEXTAUTH_URL=http://localhost:3000
-      - TELEMETRY_ENABLED=false
-    networks: [geo-net]
-    restart: unless-stopped
-
-  langfuse-db:
-    image: postgres:16
-    container_name: langfuse-db
-    profiles: [telemetria]
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${LANGFUSE_DB_PASSWORD:?defina LANGFUSE_DB_PASSWORD no .env}
-      - POSTGRES_DB=postgres
-    volumes:
-      - langfuse-db-data:/var/lib/postgresql/data
-    networks: [geo-net]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
 networks:
   geo-net:
     driver: bridge
 
 volumes:
   open-webui-data:
-  langfuse-db-data:

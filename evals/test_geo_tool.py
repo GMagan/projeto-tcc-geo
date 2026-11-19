@@ -118,6 +118,7 @@ def test_coordenadas_extremas_destacam_a_coordenada_que_define_cada_extremo(cat)
     assert r["sul"]["coordenada_extrema"] == gt.graus_para_gms(r["sul"]["lat"]) + " S"
     assert r["leste"]["coordenada_extrema"] == gt.graus_para_gms(r["leste"]["lon"]) + " O"
     assert r["oeste"]["coordenada_extrema"] == gt.graus_para_gms(r["oeste"]["lon"]) + " O"
+    assert r["norte"]["gms"].endswith(" O / " + r["norte"]["coordenada_extrema"])
 
 
 def test_municipios_intersectados_divide_a_uc_meio_a_meio(cat):
@@ -312,3 +313,70 @@ def test_colunas_fonte_e_provisorio_do_dado_valem_mais_que_o_catalogo(tmp_path):
     cat = gt.Catalogo(tmp_path / "c.yaml")
     assert cat.procedencia("zoneamento") == {"fontes": {"zoneamento": "Shapefile oficial"}, "provisorio": False}
     assert gt.carregar_camada(cat, "zoneamento")["provisorio"] is False
+
+
+def test_zona_da_coordenada_longe_nao_chama_distancia_ao_centro_de_distancia_ao_limite(cat):
+    lon, lat = lonlat(E0 + 1700, N0 + 500)
+    assert gt.zona_da_coordenada(cat, lat, lon)["distancia_ao_limite_da_uc_m"] is None
+
+
+def test_distancia_ate_camada_vazia_e_erro_de_uso(pasta_sintetica):
+    c = gt.Catalogo(pasta_sintetica / "catalogo.yaml")
+    c._cache[("rodovias", True)] = c.ler("rodovias").iloc[0:0]
+    with pytest.raises(gt.ErroGeo, match="não tem feições"):
+        gt.distancia_ate(c, "limite_uc", "rodovias")
+
+
+def test_catalogo_rele_o_yaml_quando_a_importacao_o_regrava(pasta_sintetica, tmp_path):
+    import os
+    yaml_copia = tmp_path / "catalogo.yaml"
+    yaml_copia.write_text((pasta_sintetica / "catalogo.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    c = gt.Catalogo(yaml_copia)
+    yaml_copia.write_text(yaml_copia.read_text(encoding="utf-8").replace("UC Sintética", "UC Nova"), encoding="utf-8")
+    os.utime(yaml_copia, ns=(0, c._versao + 1))  # garante mtime diferente mesmo em sistema de arquivos grosseiro
+    c.recarregar_se_mudou()
+    assert c.uc["nome"] == "UC Nova"
+
+
+def test_uso_solo_em_faixa_mais_estreita_que_o_pixel(pasta_sintetica):
+    import geopandas as gpd
+    from shapely.geometry import box
+    c = gt.Catalogo(pasta_sintetica / "catalogo.yaml")
+    # centros dos pixels de 10 m ficam em N0+5 e N0+15: a faixa de 8 m entre eles não contém nenhum
+    faixa = box(E0, N0 + 6, E0 + 500, N0 + 14)
+    c._cache[("zoneamento", True)] = gpd.GeoDataFrame({"sigla": ["ZI"], "zona": ["faixa"]}, geometry=[faixa], crs=c.epsg)
+    r = gt.uso_solo_na_area(c, "zoneamento", "ZI")
+    assert [k["classe"] for k in r["classes"]] == ["Cobertura arbórea"]
+    assert r["classes"][0]["area_ha"] == 0.4 and "estreito" in r["metodo"]
+
+
+def test_zona_da_coordenada_mede_o_afastamento_ate_a_borda_e_nao_ate_o_centro(cat, monkeypatch):
+    from geotools import zoneamento
+    monkeypatch.setattr(zoneamento, "LONGE_M", 500)  # UC "grande": ponto a 700 m do centro, mas dentro
+    lon, lat = lonlat(E0 + 1700, N0 + 500)
+    r = gt.zona_da_coordenada(cat, lon, lat)
+    assert r["dentro_da_uc"] is True and r["sigla"] == "ZAA" and "km da UC" not in (r["aviso"] or "")
+
+
+def test_intersecao_com_camada_de_linhas_e_pontos_mede_o_comprimento(pasta_sintetica):
+    import geopandas as gpd
+    from shapely.geometry import LineString, Point
+    c = gt.Catalogo(pasta_sintetica / "catalogo.yaml")
+    rios = [LineString([(E0 - 1000, N0 + 500), (E0 + 3000, N0 + 500)]), Point(E0 + 100, N0 + 900)]  # rio + nascente
+    c._cache[("rodovias", True)] = gpd.GeoDataFrame({"nome": ["rio", "nascente"]}, geometry=rios, crs=c.epsg)
+    r = gt.intersecao(c, "rodovias", "limite_uc")
+    assert r["comprimento_intersecao_km"] == 2.0
+
+
+def test_intersecao_com_camada_vazia_e_erro_de_uso(pasta_sintetica):
+    c = gt.Catalogo(pasta_sintetica / "catalogo.yaml")
+    c._cache[("rodovias", True)] = c.ler("rodovias").iloc[0:0]
+    with pytest.raises(gt.ErroGeo, match="não tem feições"):
+        gt.intersecao(c, "rodovias", "limite_uc")
+
+
+def test_mapa_da_zona_de_amortecimento_sem_a_camada_e_erro(pasta_sintetica, tmp_path):
+    c = gt.Catalogo(pasta_sintetica / "catalogo.yaml")
+    del c.camadas["zona_amortecimento"]
+    with pytest.raises(gt.ErroGeo, match="não tem zona de amortecimento"):
+        gt.gerar_mapa(c, tema="zona_amortecimento", pasta_saida=tmp_path)

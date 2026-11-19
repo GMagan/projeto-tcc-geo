@@ -75,3 +75,10 @@ def test_consultar_roteiro_pelo_protocolo(servidor):
 def test_gerar_mapa_pelo_protocolo_grava_na_pasta_configurada(servidor):
     r = chamar(servidor, "gerar_mapa", {"tema": "zoneamento"})
     assert r["status"] == "sucesso" and r["arquivo_png"] == "mapa_zoneamento.png"
+
+
+def test_toda_skill_so_cita_tools_que_o_servidor_publica():
+    # tool com nome errado na skill some calada da lista oferecida ao modelo
+    from agente import carregar_skill, listar_skills
+    for ident in listar_skills():
+        assert set(carregar_skill(ident)["tools"]) <= TOOLS_DO_RECORTE, ident

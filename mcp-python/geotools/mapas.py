@@ -15,7 +15,7 @@ from matplotlib.ticker import FuncFormatter
 
 from .catalogo import Catalogo
 from .erros import ErroGeo
-from .medidas import ha
+from .medidas import br, ha
 
 # Matizes da legenda do plano (verde, rosa, vermelho, amarelo), com luminosidade
 # ajustada para separar bem também em daltonismo (conferido com o validador de paleta).
@@ -56,6 +56,8 @@ def gerar_mapa(cat: Catalogo, tema: str = "zoneamento", pasta_saida: str | Path 
     """Desenha o mapa do tema pedido e grava PNG (200 dpi) e PDF vetorial."""
     if tema not in TEMAS:
         raise ErroGeo(f"tema '{tema}' não disponível; temas: {', '.join(TEMAS)}")
+    if tema == "zona_amortecimento" and "zona_amortecimento" not in cat.camadas:
+        raise ErroGeo("esta UC não tem zona de amortecimento nos dados; carregue o arquivo e importe de novo")
     pasta = Path(pasta_saida or os.environ.get("GEO_SAIDAS") or cat.pasta.parent / "resultados" / "mapas")
     pasta.mkdir(parents=True, exist_ok=True)
 
@@ -66,7 +68,7 @@ def gerar_mapa(cat: Catalogo, tema: str = "zoneamento", pasta_saida: str | Path 
     tem = lambda camada: camada in cat.camadas  # noqa: E731
     za = cat.ler("zona_amortecimento") if tem("zona_amortecimento") else None
 
-    foco = za if (tema == "zona_amortecimento" and za is not None) else limite
+    foco = za if tema == "zona_amortecimento" else limite
     xmin, ymin, xmax, ymax = foco.total_bounds
     lado = max(xmax - xmin, ymax - ymin) * 1.16
     cx, cy = (xmin + xmax) / 2, (ymin + ymax) / 2
@@ -101,11 +103,11 @@ def gerar_mapa(cat: Catalogo, tema: str = "zoneamento", pasta_saida: str | Path 
         desenhadas.append(str(sigla))
         area = ha(grupo.geometry.union_all().area)
         nome = str(grupo[campo_nome].iloc[0])
-        legenda.append(Patch(facecolor=cor, edgecolor=TINTA, lw=0.5, label=f"{nome} ({sigla}): {_milhar_ha(area)} ha"))
+        legenda.append(Patch(facecolor=cor, edgecolor=TINTA, lw=0.5, label=f"{nome} ({sigla}): {br(area)} ha"))
     limite.boundary.plot(ax=ax, color=TINTA, lw=1.5, zorder=7)
-    legenda.append(Line2D([0], [0], color=TINTA, lw=1.5, label=f"Limite da UC: {_milhar_ha(ha(limite.geometry.union_all().area))} ha"))
+    legenda.append(Line2D([0], [0], color=TINTA, lw=1.5, label=f"Limite da UC: {br(ha(limite.geometry.union_all().area))} ha"))
     if za is not None:
-        legenda.append(Line2D([0], [0], color="#d98200", lw=1.4, label=f"Zona de Amortecimento: {_milhar_ha(ha(za.geometry.union_all().area))} ha"))
+        legenda.append(Line2D([0], [0], color="#d98200", lw=1.4, label=f"Zona de Amortecimento: {br(ha(za.geometry.union_all().area))} ha"))
     legenda += extras
     if tem("municipios"):
         legenda.append(Line2D([0], [0], color=TINTA_SUAVE, lw=0.7, ls="--", label="Limite municipal"))
@@ -138,7 +140,7 @@ def gerar_mapa(cat: Catalogo, tema: str = "zoneamento", pasta_saida: str | Path 
         borda.set_color(TINTA_SUAVE)
         borda.set_linewidth(0.6)
 
-    passo = next(p for p in (5000, 2000, 1000, 500, 200, 100, 50) if p <= lado / 4)
+    passo = next((p for p in (5000, 2000, 1000, 500, 200, 100, 50, 20) if p <= lado / 4), 10)  # UC minúscula: 10 m
     _barra_de_escala(ax, passo)
     _norte(ax)
 
@@ -170,8 +172,3 @@ def gerar_mapa(cat: Catalogo, tema: str = "zoneamento", pasta_saida: str | Path 
         "crs": cat.crs,
         **procedencia,
     }
-
-
-def _milhar_ha(valor: float) -> str:
-    """616.66 -> '616,66' (padrão brasileiro)."""
-    return f"{valor:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")

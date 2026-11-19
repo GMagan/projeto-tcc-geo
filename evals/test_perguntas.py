@@ -26,3 +26,14 @@ def test_ponto_da_pergunta_cai_na_zona_esperada(cat):
     p = next(p for p in gerar_perguntas(cat) if p["id"] == "ponto_zona")
     lon, lat = p["ponto"]
     assert gt.zona_da_coordenada(cat, lon, lat)["sigla"] == p["sigla_esperada"]
+
+
+def test_zona_do_ponto_e_zona_inexistente_sao_julgadas_pela_resposta(cat):
+    from rodar_agente import julgar
+    perguntas = {p["id"]: p for p in gerar_perguntas(cat)}
+    ponto, ausente = perguntas["ponto_zona"], perguntas["zona_inexistente"]
+    rastro = lambda resposta: {"pergunta": "", "resposta": resposta, "chamadas": []}  # noqa: E731
+    assert julgar(ponto, rastro(f"O ponto cai na {ponto['sigla_esperada']}."), [], True)["acertou_valores"] is True
+    assert julgar(ponto, rastro("O ponto cai na ZXX."), [], True)["acertou_valores"] is False
+    assert julgar(ausente, rastro("Essa zona não existe nesta UC."), [], True)["acertou_valores"] is True
+    assert julgar(ausente, rastro("Ela tem 30,5 ha."), [], True)["acertou_valores"] is False

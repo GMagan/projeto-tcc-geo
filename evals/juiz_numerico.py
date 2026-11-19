@@ -113,7 +113,7 @@ def avaliar(resposta: str, rastro: dict, tools_esperadas: list[str] | None = Non
         "chamou_tool": bool(chamadas),
         "tools_usadas": usadas,
         "usou_tool_esperada": all(t in usadas for t in tools_esperadas) if tools_esperadas is not None else None,
-        "acertou_valores": all(any(_igual(abs(e), n) for n in na_resposta) for e in valores_esperados) if valores_esperados is not None else None,
+        "acertou_valores": all(any(_igual(abs(e), n) for n in na_resposta) for e in valores_esperados) if valores_esperados else None,  # sem número esperado: não conta como acerto
         "citou_crs": bool(re.search(r"SIRGAS|EPSG\s*:?\s*\d{4,5}|UTM", resposta or "", re.IGNORECASE)),
         "avisou_provisorio": bool(re.search(r"provis[óo]ri", resposta or "", re.IGNORECASE)) if houve_provisorio else None,
     }

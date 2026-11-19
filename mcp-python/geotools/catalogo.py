@@ -24,6 +24,7 @@ class Catalogo:
 
     def __init__(self, caminho_yaml: str | Path):
         self.caminho = Path(caminho_yaml)
+        self._versao = self.caminho.stat().st_mtime_ns
         self.pasta = self.caminho.parent
         cfg = yaml.safe_load(self.caminho.read_text(encoding="utf-8"))
         self.epsg: int = int(cfg["crs_trabalho"])
@@ -31,6 +32,11 @@ class Catalogo:
         self.camadas: dict[str, dict] = cfg.get("camadas", {})
         self.rasters: dict[str, dict] = cfg.get("rasters", {})
         self._cache: dict[tuple[str, bool], gpd.GeoDataFrame] = {}
+
+    def recarregar_se_mudou(self) -> None:
+        """Um `make importar` com o servidor no ar regrava o YAML: sem isto, o servidor serviria a UC antiga."""
+        if self.caminho.stat().st_mtime_ns != self._versao:
+            self.__init__(self.caminho)
 
     @property
     def crs(self) -> str:

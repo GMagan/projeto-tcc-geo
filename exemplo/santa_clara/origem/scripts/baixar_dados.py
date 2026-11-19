@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Registro histórico: precisa de requests, que o projeto não instala.
 """Baixa os dados abertos usados enquanto os shapefiles oficiais não chegam.
 
 Cada fonte vai para uma pasta própria em dados/brutos/ e fica registrada em

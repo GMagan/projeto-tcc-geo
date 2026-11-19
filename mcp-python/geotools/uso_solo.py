@@ -24,10 +24,18 @@ def uso_solo_na_area(cat: Catalogo, camada: str, feicao: str = "", raster: str =
         raise ErroGeo(f"a camada '{camada}' não tem área; uso_solo_na_area só aceita polígonos")
     with rasterio.open(cat.caminho_raster(raster)) as src:
         no_raster = gpd.GeoSeries([geom], crs=cat.epsg).to_crs(src.crs).iloc[0]
-        recorte, _ = rasterio.mask.mask(src, [no_raster], crop=True, filled=False)
+        try:
+            recorte, _ = rasterio.mask.mask(src, [no_raster], crop=True, filled=False)
+        except ValueError as erro:  # polígono fora da extensão do raster
+            raise ErroGeo(f"o raster '{raster}' não cobre a área pedida") from erro
+        validos = recorte.compressed()
+        metodo = "pixels com centro no polígono; área vetorial repartida pela fração de cada classe"
+        if validos.size == 0:  # faixa mais estreita que o pixel (estrada, linha de transmissão): nenhum centro cai dentro
+            recorte, _ = rasterio.mask.mask(src, [no_raster], crop=True, filled=False, all_touched=True)
+            validos = recorte.compressed()
+            metodo = "polígono mais estreito que o pixel: pixels que ele toca; área vetorial repartida pela fração de cada classe"
         resolucao = [abs(float(v)) for v in src.res]
         crs_raster = src.crs.to_string()
-    validos = recorte.compressed()
     if validos.size == 0:
         raise ErroGeo(f"o raster '{raster}' não cobre a área pedida")
     codigos, contagens = np.unique(validos, return_counts=True)
@@ -53,6 +61,6 @@ def uso_solo_na_area(cat: Catalogo, camada: str, feicao: str = "", raster: str =
         "pixels_contados": int(validos.size),
         "resolucao_do_raster": resolucao,
         "crs_do_raster": crs_raster,
-        "metodo": "pixels com centro no polígono; área vetorial repartida pela fração de cada classe",
+        "metodo": metodo,
         **cat.procedencia(camada, raster),
     }
