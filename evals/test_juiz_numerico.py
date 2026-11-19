@@ -83,3 +83,7 @@ def test_inteiro_pequeno_com_unidade_e_medida_e_e_cobrado():
     r = avaliar("A Zona de Uso Intensivo tem 8 ha e fica a 5 km da sede (10%).", {"pergunta": "Qual a área da ZUI?", "chamadas": []})
     assert r["numeros_sem_origem"] == [8.0, 5.0, 10.0]
     assert r["alucinacao_numerica"] is True
+
+
+def test_sem_numero_esperado_nao_conta_como_valor_certo():
+    assert avaliar("Não sei.", {"chamadas": []}, valores_esperados=[])["acertou_valores"] is None

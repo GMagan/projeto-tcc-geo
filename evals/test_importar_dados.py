@@ -139,3 +139,179 @@ def test_reimportar_tira_camadas_que_o_usuario_removeu(dados):
     (entrada / "estradas.gpkg").unlink()
     importar(pasta)
     assert "estradas" not in gt.Catalogo(pasta / "catalogo.yaml").camadas
+
+
+def test_sigla_errada_em_zonas_yaml_para_em_vez_de_sumir_com_a_zona(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada, [{"NOME_ZONA": "Uso público", "geometry": box(E0, N0 - 100, E0 + 100, N0)}])
+    (entrada / "zonas.yaml").write_text("Uso público: ZUP\n", encoding="utf-8")
+    with pytest.raises(ErroImportacao, match="ZUP"):
+        importar(pasta)
+
+
+def test_camada_com_texto_de_zona_no_atributo_nao_vira_zoneamento(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    gravar(entrada, "app", [{"tipo": "Área de Preservação Permanente", "geometry": box(E0, N0 - 500, E0 + 500, N0)}])
+    importar(pasta)
+    cat = gt.Catalogo(pasta / "catalogo.yaml")
+    assert {z["sigla"]: z["area_ha"] for z in gt.calcular_area_zonas(cat)["zonas"]}["ZP"] == 100.0
+    assert "app" in cat.camadas
+
+
+def test_uc_ao_norte_do_equador_sai_com_n_e_nao_s(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    # Amapá: UTM 22 norte (EPSG 31976), cerca de 2,7° N
+    gpd.GeoDataFrame({"zona": ["Zona de Preservação"]}, geometry=[box(400_000, 300_000, 402_000, 301_000)],
+                     crs=31976).to_file(entrada / "zoneamento.gpkg")
+    importar(pasta)
+    r = gt.coordenadas_extremas(gt.Catalogo(pasta / "catalogo.yaml"), "limite_uc")
+    assert r["norte"]["lat"] > 0 and r["norte"]["coordenada_extrema"].endswith(" N")
+    assert r["oeste"]["coordenada_extrema"].endswith(" O")
+
+
+def test_raster_sem_nome_de_uso_do_solo_e_ignorado_com_aviso(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    with rasterio.open(entrada / "altitude.tif", "w", driver="GTiff", height=10, width=10, count=1, dtype="uint16",
+                       crs=f"EPSG:{EPSG}", transform=from_origin(E0, N0 + 1000, 200, 100)) as r:
+        r.write(np.full((1, 10, 10), 812, dtype=np.uint16))
+    rel = importar(pasta)
+    assert rel["rasters"] == [] and any("altitude.tif ignorado" in a for a in rel["avisos"])
+
+
+def test_mapa_de_uc_minuscula_sai_com_barra_de_escala(dados, tmp_path):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    gravar(entrada, "zoneamento", [{"zona": "Zona de Preservação", "geometry": box(E0, N0, E0 + 30, N0 + 30)}])
+    importar(pasta)
+    assert gt.gerar_mapa(gt.Catalogo(pasta / "catalogo.yaml"), pasta_saida=tmp_path)["status"] == "sucesso"
+
+
+def test_limites_municipais_viram_municipios_e_nao_o_limite_da_uc(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    gravar(entrada, "limites_municipais", [{"NM_MUN": "Alfa", "geometry": box(E0 - 9000, N0 - 9000, E0 + 9000, N0 + 9000)}])
+    importar(pasta)
+    cat = gt.Catalogo(pasta / "catalogo.yaml")
+    assert gt.calcular_area(cat, "limite_uc")["area_ha"] == 200.0 and "municipios" in cat.camadas
+
+
+def test_limite_muito_maior_que_as_zonas_e_avisado(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    gravar(entrada, "limite_za", [{"id": 1, "geometry": UC.buffer(3000)}])
+    assert any("sem zona" in a for a in importar(pasta)["avisos"])
+
+
+def test_geopackage_com_varias_camadas_importa_todas(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    arquivo = entrada / "projeto.gpkg"
+    gpd.GeoDataFrame([{"NOME_ZONA": n, "geometry": g} for n, g in ZONAS.items()], crs=EPSG).to_file(arquivo, layer="zonas")
+    gpd.GeoDataFrame({"nome": ["rio"]}, geometry=[LineString([(E0, N0 - 10), (E0, N0 + 1010)])], crs=EPSG).to_file(arquivo, layer="hidrografia")
+    rel = importar(pasta)
+    assert rel["camadas"]["hidrografia"] == "projeto.gpkg/hidrografia" and "zoneamento" in rel["camadas"]
+
+
+def test_raster_recortado_na_uc_nao_derruba_os_resultados(dados, capsys):
+    from scripts.gerar_resultados import uso_solo_por_area
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada, [{"NOME_ZONA": "Zona de Amortecimento", "geometry": UC.buffer(500)}])
+    with rasterio.open(entrada / "uso.tif", "w", driver="GTiff", height=100, width=200, count=1, dtype="uint8",
+                       crs=f"EPSG:{EPSG}", transform=from_origin(E0, N0 + 1000, 10, 10), nodata=0) as r:
+        r.write(np.full((1, 100, 200), 3, dtype=np.uint8))  # só a UC: fora dela é "sem dado"
+    importar(pasta)
+    cat = gt.Catalogo(pasta / "catalogo.yaml")
+    uso = uso_solo_por_area(cat, {"UC": ("limite_uc", ""), "ZA": ("zona_amortecimento", "")})
+    assert list(uso) == ["UC"] and "ZA sem uso do solo" in capsys.readouterr().out
+
+
+def test_feicao_sem_nome_de_zona_e_avisada_com_a_area_que_ficou_de_fora(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada, [{"NOME_ZONA": None, "geometry": box(E0, N0 - 1000, E0 + 1000, N0)}])  # 100 ha sem zona
+    assert any("1 feição(ões)" in a and "100.00 ha" in a for a in importar(pasta)["avisos"])
+
+
+def test_legenda_com_ponto_e_virgula_do_excel_em_portugues(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    with rasterio.open(entrada / "uso.tif", "w", driver="GTiff", height=10, width=20, count=1, dtype="uint8",
+                       crs=f"EPSG:{EPSG}", transform=from_origin(E0, N0 + 1000, 100, 100)) as r:
+        r.write(np.full((1, 10, 20), 3, dtype=np.uint8))
+    (entrada / "uso.csv").write_text("codigo;classe\n3;Formação Florestal\n", encoding="cp1252")
+    importar(pasta)
+    assert gt.Catalogo(pasta / "catalogo.yaml").rasters["uso_solo"]["classes"] == {3: "Formação Florestal"}
+    (entrada / "uso.csv").write_text("so uma coluna\n3\n", encoding="utf-8")
+    with pytest.raises(ErroImportacao, match="duas colunas"):
+        importar(pasta)
+
+
+@pytest.mark.parametrize("codigos", [[1, 2, 3], [1.0, 2.0, None]])  # com nulo, o shapefile lê a coluna como decimal
+def test_zonas_em_codigo_numerico_com_zonas_yaml(dados, codigos):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    gravar(entrada, "zoneamento", [{"COD_ZONA": c, "geometry": g} for c, g in zip(codigos, ZONAS.values())])
+    (entrada / "zonas.yaml").write_text("1: ZP\n2: ZUM\n3: ZI\n", encoding="utf-8")
+    importar(pasta)
+    siglas = {z["sigla"] for z in gt.calcular_area_zonas(gt.Catalogo(pasta / "catalogo.yaml"))["zonas"]}
+    assert siglas == ({"ZP", "ZUM", "ZI"} if None not in codigos else {"ZP", "ZUM"})
+
+
+def test_zip_com_varios_shapefiles_importa_todos(dados, tmp_path):
+    import zipfile
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    soltos = tmp_path / "soltos"
+    gravar(soltos, "zoneamento", [{"NOME_ZONA": n, "geometry": g} for n, g in ZONAS.items()], sufixo=".shp")
+    gravar(soltos, "hidrografia", [{"nome": "rio", "geometry": LineString([(E0, N0 - 10), (E0, N0 + 1010)])}], sufixo=".shp")
+    with zipfile.ZipFile(entrada / "dados_uc.zip", "w") as z:
+        for p in soltos.iterdir():
+            z.write(p, p.name)
+    rel = importar(pasta)
+    assert rel["camadas"]["hidrografia"] == "dados_uc.zip/hidrografia" and rel["camadas"]["zoneamento"] == "dados_uc.zip/zoneamento"
+
+
+def test_mesmo_nome_em_subpastas_diferentes_nao_some(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    for sub in ("estaduais", "municipais"):
+        gravar(entrada / sub, "estradas", [{"nome": sub, "geometry": LineString([(E0, N0), (E0 + 500, N0 + 500)])}])
+    rel = importar(pasta)
+    assert {"estradas", "municipais_estradas"} <= set(rel["camadas"])
+    assert any("municipais_estradas" in a for a in rel["avisos"])
+
+
+def test_interesse_que_nao_e_publico_nao_vira_zdip():
+    from scripts.importar_dados import classificar
+    assert classificar("Zona de Interesse Histórico-Cultural", {}) is None
+    assert classificar("Zona de Diferentes Interesses Públicos", {}) == "ZDIP"
+
+
+def test_fuso_sem_codigo_sirgas_2000_para_em_vez_de_usar_outro_datum():
+    from scripts.importar_dados import epsg_utm
+    assert epsg_utm(-60.02, -3.1) == 31980  # Manaus, 20S
+    assert epsg_utm(-60.7, 2.8) == 31974  # Roraima, 20N
+    with pytest.raises(ErroImportacao, match="fuso 26S"):
+        epsg_utm(-29.3, -20.5)  # Ilha da Trindade
+
+
+def test_malha_municipal_grande_guarda_so_os_vizinhos(dados):
+    pasta, entrada = dados
+    uc_yaml(entrada)
+    zonas(entrada)
+    gravar(entrada, "municipios", [{"NM_MUN": "Alfa", "geometry": box(E0 - 9000, N0 - 9000, E0 + 9000, N0 + 9000)},
+                                   {"NM_MUN": "Longe", "geometry": box(E0 + 200_000, N0, E0 + 201_000, N0 + 1000)}])
+    importar(pasta)
+    cat = gt.Catalogo(pasta / "catalogo.yaml")
+    assert cat.rotulos("municipios") == ["Alfa"]

@@ -10,6 +10,7 @@ Exemplos:
   python evals/rodar_agente.py --base-url http://localhost:11434/v1 --modelo llama3.2:3b --condicao sem_tools
 
 Saída: resultados/llm/<modelo>/<condicao>.jsonl (um rastro por pergunta) e resumo.json.
+Com --apenas: <condicao>_parcial.jsonl, e resumo.json não muda.
 """
 from __future__ import annotations
 
@@ -93,7 +94,7 @@ def gerar_perguntas(cat: gt.Catalogo) -> list[dict]:
     ponto = gt.medidas.para_geografico(cat.selecionar("zoneamento", maior["sigla"]).geometry.union_all().representative_point(), cat.epsg)
     lon, lat = round(ponto.x, 5), round(ponto.y, 5)
     q("ponto_zona", "zoneamento", f"Em que zona cai o ponto de longitude {lon} e latitude {lat}?", ["zona_da_coordenada"],
-      ponto=(lon, lat), sigla_esperada=maior["sigla"])
+      ponto=(lon, lat), sigla_esperada=maior["sigla"], zona_esperada=maior["zona"])
     q("normas", SKILL_DA_ZONA.get(maior["sigla"], "zoneamento"), f"Que atividades o roteiro do ICMBio permite na {maior['zona']}?",
       ["consultar_roteiro"])
     if "uso_solo" in cat.rasters:
@@ -119,6 +120,18 @@ def gerar_perguntas(cat: gt.Catalogo) -> list[dict]:
     if ausente:
         q("zona_inexistente", "zoneamento", f"Qual é a área da {ausente} desta UC?", [], sem_numeros=True)
     return P
+
+
+def julgar(p: dict, rastro: dict, esperados: list[float], com_tools: bool) -> dict:
+    """Juiz numérico, mais as perguntas cuja resposta certa não é um número."""
+    juiz = avaliar(rastro["resposta"], rastro, tools_esperadas=p["tools"] if com_tools else None, valores_esperados=esperados)
+    resposta = rastro["resposta"] or ""
+    if "sigla_esperada" in p:  # zona do ponto: a resposta tem de nomear a zona certa
+        juiz["acertou_valores"] = bool(re.search(rf"\b{re.escape(p['sigla_esperada'])}\b", resposta)) \
+            or p["zona_esperada"].casefold() in resposta.casefold()
+    if p.get("sem_numeros"):  # zona que não existe: qualquer medida na resposta é inventada
+        juiz["acertou_valores"] = juiz["n_numeros"] == 0
+    return juiz
 
 
 def geometria_wkt(cat: gt.Catalogo, spec: dict | None) -> str | None:
@@ -164,28 +177,35 @@ def main() -> None:
     modelo = ModeloOpenAI(args.base_url, args.modelo, args.chave)
     perguntas = gerar_perguntas(cat)
     if args.apenas:
+        ids = [p["id"] for p in perguntas]
         perguntas = [p for p in perguntas if p["id"] in args.apenas]
+        if not perguntas:
+            sys.exit(f"nenhuma pergunta com os ids {args.apenas}; ids: {', '.join(ids)}")
     if args.condicao == "sem_tools":
         perguntas = [p for p in perguntas if p.get("geometria")]  # só as que dá para responder com a geometria
 
     pasta = RAIZ / "resultados" / "llm" / re.sub(r"[^\w.-]+", "_", args.modelo)
     pasta.mkdir(parents=True, exist_ok=True)
     linhas = []
-    with (pasta / f"{args.condicao}.jsonl").open("w", encoding="utf-8") as saida:
+    # rodada parcial vai para outro arquivo: não apaga os rastros (horas de modelo) da rodada completa
+    nome_saida = f"{args.condicao}_parcial" if args.apenas else args.condicao
+    with (pasta / f"{nome_saida}.jsonl").open("w", encoding="utf-8") as saida:
         for p in perguntas:
             esperados = valores_esperados(cat, p)
             if args.condicao == "agente":
                 rastro = executar(p["pergunta"], carregar_skill(p["skill"]), modelo, servidor)
-                juiz = avaliar(rastro["resposta"], rastro, tools_esperadas=p["tools"], valores_esperados=esperados)
             else:
                 rastro = executar(p["pergunta"], None, modelo, servidor, contexto=geometria_wkt(cat, p["geometria"]))
-                juiz = avaliar(rastro["resposta"], {**rastro, "pergunta": p["pergunta"]}, valores_esperados=esperados)
+            juiz = julgar(p, rastro, esperados, com_tools=args.condicao == "agente")
             linha = {"id": p["id"], "skill": p["skill"], "condicao": args.condicao, "valores_esperados": esperados, "juiz": juiz, "rastro": rastro}
             saida.write(json.dumps(linha, ensure_ascii=False, default=str) + "\n")
             saida.flush()
             linhas.append(linha)
             print(f"[{p['id']}] tool={juiz['usou_tool_esperada']} valores={juiz['acertou_valores']} sem_origem={juiz['numeros_sem_origem']} {rastro['segundos']}s")
 
+    if args.apenas:
+        print(json.dumps(resumir(linhas), indent=2, ensure_ascii=False))
+        return
     resumo_caminho = pasta / "resumo.json"
     resumo = json.loads(resumo_caminho.read_text(encoding="utf-8")) if resumo_caminho.exists() else {}
     resumo[args.condicao] = {"modelo": args.modelo, "base_url": args.base_url, **resumir(linhas)}

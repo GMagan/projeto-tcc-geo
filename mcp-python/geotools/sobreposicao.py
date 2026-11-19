@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
+import shapely
 from pyproj import CRS
 from shapely.geometry import Point
 
@@ -16,6 +17,8 @@ def distancia_ate(
     """Menor distância (m) da origem até cada feição da camada de destino."""
     origem = cat.selecionar(camada_origem, feicao_origem).geometry.union_all()
     destino = cat.selecionar(camada_destino, feicao_destino)
+    if destino.empty:
+        raise ErroGeo(f"a camada '{camada_destino}' não tem feições para medir a distância")
     campo = cat.meta(camada_destino).get("campo_sigla") or cat.meta(camada_destino).get("campo_nome")
     feicoes = [
         {"feicao": str(linha[campo]) if campo and campo in destino and linha[campo] else f"feição {i}",
@@ -37,13 +40,17 @@ def distancia_ate(
 
 
 def _dimensao(geom) -> int:
-    return {"Point": 0, "MultiPoint": 0, "LineString": 1, "MultiLineString": 1}.get(geom.geom_type, 2)
+    """0 ponto, 1 linha, 2 polígono; coleção mista (rios + nascentes) vale a maior."""
+    return int(shapely.get_dimensions(geom))
 
 
 def intersecao(cat: Catalogo, camada_a: str, camada_b: str, feicao_a: str = "", feicao_b: str = "") -> dict:
     """Parte comum entre A e B: área (polígonos), comprimento (linhas) ou contagem (pontos)."""
     a = cat.selecionar(camada_a, feicao_a).geometry.union_all()
     b = cat.selecionar(camada_b, feicao_b).geometry.union_all()
+    for nome, geom in ((camada_a, a), (camada_b, b)):
+        if geom.is_empty:
+            raise ErroGeo(f"a camada '{nome}' não tem feições para a interseção")
     comum = a.intersection(b)
     saida = {
         "status": "sucesso",

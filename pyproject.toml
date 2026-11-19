@@ -9,10 +9,8 @@ testpaths = ["evals"]
 pythonpath = ["mcp-python", "."]
 addopts = "-ra"
 markers = [
-    "dados: usa a base real em dados/processados (rode scripts/preparar_base.py antes)",
     "llm: precisa de um modelo de linguagem em execução (OLLAMA_URL ou LLM_BASE_URL)",
 ]
-asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "error::DeprecationWarning:geotools.*",
     "ignore::DeprecationWarning:deepeval.*",

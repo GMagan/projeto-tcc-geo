@@ -104,7 +104,7 @@ def arquitetura():
     caixa(ax, 5.3, 9.4, 6.4, 1.5, "Servidor de inferência (Ollama)\nmodelo de linguagem: interpreta e redige", FUNDO, 8)
     caixa(ax, 5.3, 6.4, 6.4, 1.8, "Orquestrador\nOpen WebUI (uso interativo) ou\npacote agente/ (avaliação automática)", DESTAQUE, 8, True)
     caixa(ax, 0.3, 6.6, 3.9, 1.4, "Skills e persona\n(Markdown no Git)", FUNDO, 8)
-    caixa(ax, 12.8, 6.6, 3.9, 1.4, "Rastros da execução\n(JSONL; Langfuse\nopcional)", FUNDO, 7.6)
+    caixa(ax, 12.8, 6.6, 3.9, 1.4, "Rastros da execução\n(JSONL)", FUNDO, 7.6)
     caixa(ax, 5.3, 3.2, 6.4, 1.9, "Servidor MCP (TCC-GeoWorker)\n17 tools determinísticas\ngeotools: GeoPandas, Shapely, PROJ", DESTAQUE, 8, True)
     caixa(ax, 0.3, 3.45, 3.9, 1.4, "Catálogo de camadas\n(GeoPackage e raster)", FUNDO, 8)
     caixa(ax, 12.8, 3.45, 3.9, 1.4, "Roteiro do ICMBio\n(índice BM25)", FUNDO, 8)
