@@ -36,7 +36,10 @@ CHAVES_DE_LISTA = ("sigla", "municipio", "classe", "feicao")
 def valor_no_caminho(resultado: dict, caminho: str):
     """'zonas.ZC.area_ha' -> resultado['zonas'][item com sigla ZC]['area_ha']."""
     atual = resultado
-    for parte in caminho.split("."):
+    # nome de classe ou município pode ter ponto ("Form. Florestal"): só o primeiro e o último "." separam
+    cabeca, _, resto = caminho.partition(".")
+    meio, _, fim = resto.rpartition(".")
+    for parte in [p for p in (cabeca, meio, fim) if p]:
         if isinstance(atual, list):
             atual = next(item for item in atual if any(str(item.get(c)) == parte for c in CHAVES_DE_LISTA))
         else:
@@ -100,6 +103,18 @@ def gerar_perguntas(cat: gt.Catalogo) -> list[dict]:
     if "uso_solo" in cat.rasters:
         q("uso_solo", "zoneamento", f"Qual é o uso do solo dentro da {maior['zona']}?", ["uso_solo_na_area"],
           [e("uso_solo_na_area", {"camada": "zoneamento", "feicao": maior["sigla"]}, ["area_total_ha"])])
+        # 4.1: a classe dominante dá a evidência medida da condição atual
+        dominante = gt.uso_solo_na_area(cat, "limite_uc")["classes"][0]["classe"]
+        q("rvf_condicao", "analise_recursos",
+          "Para o recurso e valor fundamental 'Biodiversidade', qual é a condição atual da cobertura do solo dentro da UC? "
+          "Dê a área e o percentual da classe que mais ocupa a UC.", ["uso_solo_na_area"],
+          [e("uso_solo_na_area", {"camada": "limite_uc"}, [f"classes.{dominante}.area_ha", f"classes.{dominante}.percentual"])])
+        if tem("zona_amortecimento"):
+            q("rvf_entorno", "analise_recursos",
+              "Que pressões do entorno ameaçam os recursos e valores fundamentais? Mostre o uso do solo na Zona de Amortecimento.",
+              ["uso_solo_na_area"], [e("uso_solo_na_area", {"camada": "zona_amortecimento"}, ["area_total_ha"])])
+    q("rvf_sem_recursos", "analise_recursos", "Faça a análise dos recursos e valores fundamentais desta UC.", [],
+      sem_numeros=True)  # sem os RVFs da oficina a resposta certa é pedi-los, sem medida nenhuma
     for nome in cat.camadas:
         if nome not in ("limite_uc", "zoneamento", "zona_amortecimento", "municipios") and \
                 cat.ler(nome).geom_type.str.contains("Line").all():

@@ -34,7 +34,6 @@ import io
 import os
 import re
 import sys
-import unicodedata
 from pathlib import Path
 from typing import Callable
 
@@ -48,6 +47,9 @@ from shapely.geometry import box
 from shapely.ops import unary_union
 
 RAIZ = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RAIZ / "mcp-python"))
+
+from geotools.catalogo import _normalizar, como_texto  # noqa: E402  (uma regra só para importar e para buscar)
 
 # As 14 zonas do Roteiro Metodológico do ICMBio (2018), mais a de amortecimento.
 ZONAS = [  # (sigla, nome, trechos que identificam o nome)
@@ -78,15 +80,6 @@ class ErroImportacao(RuntimeError):
 
 
 Perguntar = Callable[..., str]
-
-
-def como_texto(valor) -> str:
-    """Valor de atributo como texto; 3.0 vira '3' (coluna inteira com nulo é lida como decimal)."""
-    return str(int(valor)) if isinstance(valor, float) and valor.is_integer() else str(valor)
-
-
-def _normalizar(texto) -> str:
-    return " ".join(unicodedata.normalize("NFKD", como_texto(texto)).encode("ascii", "ignore").decode().casefold().split())
 
 
 def _slug(texto: str) -> str:

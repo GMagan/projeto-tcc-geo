@@ -11,8 +11,13 @@ from shapely import make_valid
 from .erros import ErroGeo
 
 
+def como_texto(valor) -> str:
+    """Valor de atributo como texto; 3.0 vira '3' (coluna inteira com nulo é lida como decimal)."""
+    return str(int(valor)) if isinstance(valor, float) and valor.is_integer() else str(valor)
+
+
 def _normalizar(texto: object) -> str:
-    sem_acento = unicodedata.normalize("NFKD", str(texto)).encode("ascii", "ignore").decode()
+    sem_acento = unicodedata.normalize("NFKD", como_texto(texto)).encode("ascii", "ignore").decode()
     return " ".join(sem_acento.casefold().split())
 
 
