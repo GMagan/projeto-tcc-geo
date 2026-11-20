@@ -194,9 +194,10 @@ Metodológico do ICMBio (2018). Cada tópico é feito pela camada mais barata qu
 
 Regra fixa: nenhum número sai do modelo; todo valor vem de uma ferramenta T0.
 
-O TCC implementa os **9 tópicos que têm número publicado no plano** (dá para medir o erro). Os
-outros 15 dependem de oficinas participativas ou de dados que o projeto ainda não lê, e ficam
-planejados.
+O TCC implementa os **9 tópicos que têm número publicado no plano** (dá para medir o erro) e o
+4.1, cuja parte medida (uso do solo, estradas) é conferida pelo juiz numérico e o resto fica para
+a oficina. Os outros 14 dependem de oficinas participativas ou de dados que o projeto ainda não
+lê, e ficam planejados.
 
 | Nº | Tópico | Camada | Estado |
 |---|---|---|---|
@@ -210,7 +211,7 @@ planejados.
 | 3.2 | Propósito | M3 | planejado (depende da oficina) |
 | 3.3 | Declarações de significância | M3 | planejado (`contar_especies_ameacadas`) |
 | 3.4 | Recursos e valores fundamentais | M3 | planejado (depende da oficina) |
-| 4.1 | Análise dos recursos e valores | M2 | planejado (`uso_solo_na_area` já existe) |
+| **4.1** | **Análise dos recursos e valores** | M2 + T0 | **feito**: `uso_solo_na_area`, `intersecao`, `distancia_ate` (RVFs vêm do usuário; o resto é rascunho para a oficina) |
 | 4.2 | Questões-chave | M3 | planejado (`sobrepor_propriedades`, CAR) |
 | 4.3 | Necessidades de dados | M2 | planejado |
 | **5.1** | **Distribuição das zonas** | M2 + T0 | **feito**: `calcular_area_zonas`, `percentual_por_zona` |
@@ -225,12 +226,12 @@ planejados.
 | 6.2 | Demais mapas temáticos (12) | T0 | planejado (`declividade`, `hipsometria`) |
 | 6.3 | Listas de flora e fauna | M1 + T0 | planejado (`cruzar_lista_ameacadas`) |
 
-**Feito e testado** (`make testes`, 117 testes):
+**Feito e testado** (`make testes`, 122 testes):
 - servidor MCP com 17 ferramentas, cada uma conferida contra geometria de resultado conhecido;
 - importação nos dois modos (`make` e `make ia`), para qualquer UC, perguntando o que faltar;
 - tabelas, mapas e comparação com o gabarito do plano (`make resultados`);
 - consulta ao roteiro do ICMBio (BM25, com página para citação);
-- 7 skills (ficha técnica, zoneamento e uma por zona), mais a persona e a skill de importação;
+- 8 skills (ficha técnica, zoneamento, análise dos recursos e valores e uma por zona), mais a persona e a skill de importação;
 - orquestrador do agente, gerador de perguntas e juiz numérico.
 
 **Feito, mas ainda não rodado de verdade:**
@@ -244,7 +245,7 @@ planejados.
   vetorizado das figuras do plano (provisório) e por isso só 1 de 14 números do gabarito bate;
 - telemetria com Langfuse (rastros e "curti/não curti" do Open WebUI): prevista no rascunho,
   fica fora do `docker-compose.yml` até ser ligada de fato;
-- os 15 tópicos planejados acima.
+- os 14 tópicos planejados acima.
 
 ## Estrutura
 

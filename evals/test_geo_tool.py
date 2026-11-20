@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import math
 
+import geopandas as gpd
 import pytest
+import rasterio
+import yaml
 from conftest import E0, N0, lonlat
 from pyproj import Geod
 
@@ -380,3 +383,48 @@ def test_mapa_da_zona_de_amortecimento_sem_a_camada_e_erro(pasta_sintetica, tmp_
     del c.camadas["zona_amortecimento"]
     with pytest.raises(gt.ErroGeo, match="não tem zona de amortecimento"):
         gt.gerar_mapa(c, tema="zona_amortecimento", pasta_saida=tmp_path)
+
+
+def _uc_de_100_ha(tmp_path, dados, nodata):
+    """Quadrado de 1000 m e raster de 10 m que começa na borda oeste dele."""
+    import numpy as np
+    from rasterio.transform import from_origin
+    from shapely.geometry import box
+    with rasterio.open(tmp_path / "uso.tif", "w", driver="GTiff", width=dados.shape[1], height=dados.shape[0], count=1,
+                       dtype="uint8", crs="EPSG:31982", transform=from_origin(500000, 7200000, 10, 10), nodata=nodata) as r:
+        r.write(np.asarray(dados, dtype="uint8"), 1)
+    gpd.GeoDataFrame({"nome": ["x"]}, geometry=[box(500000, 7199000, 501000, 7200000)], crs=31982).to_file(tmp_path / "b.gpkg", layer="limite_uc")
+    (tmp_path / "c.yaml").write_text(yaml.safe_dump({
+        "crs_trabalho": 31982, "camadas": {"limite_uc": {"arquivo": "b.gpkg", "camada": "limite_uc", "campo_nome": "nome"}},
+        "rasters": {"uso_solo": {"arquivo": "uso.tif", "classes": {3: "Floresta", 15: "Pastagem"}}}}), encoding="utf-8")
+    return gt.Catalogo(tmp_path / "c.yaml")
+
+
+def test_uso_solo_nao_reparte_a_area_que_o_raster_nao_cobre(tmp_path):
+    import numpy as np
+    r = gt.uso_solo_na_area(_uc_de_100_ha(tmp_path, np.full((100, 50), 3), nodata=0), "limite_uc")  # cobre só a metade oeste
+    assert r["classes"][0]["area_ha"] == 50.0
+    assert r["cobertura_do_raster_pct"] == 50.0 and "aviso_cobertura" in r
+
+
+def test_uso_solo_sem_nodata_declarado_ignora_o_fundo_zero(tmp_path):
+    import numpy as np
+    dados = np.full((100, 100), 15)
+    dados[:, :20] = 0  # borda de exportação sem dado
+    r = gt.uso_solo_na_area(_uc_de_100_ha(tmp_path, dados, nodata=None), "limite_uc")
+    assert [c["classe"] for c in r["classes"]] == ["Pastagem"] and r["classes"][0]["percentual"] == 100.0
+
+
+def test_distancia_ate_feicao_sem_nome_nao_vira_nan(tmp_path):
+    from shapely.geometry import Point, box
+    gpd.GeoDataFrame({"nome": [None]}, geometry=[Point(501500, 7199500)], crs=31982).to_file(tmp_path / "b.gpkg", layer="pontos")
+    gpd.GeoDataFrame({"nome": ["x"]}, geometry=[box(500000, 7199000, 501000, 7200000)], crs=31982).to_file(tmp_path / "b.gpkg", layer="limite_uc")
+    (tmp_path / "c.yaml").write_text(yaml.safe_dump({"crs_trabalho": 31982, "camadas": {
+        n: {"arquivo": "b.gpkg", "camada": n, "campo_nome": "nome"} for n in ("limite_uc", "pontos")}}), encoding="utf-8")
+    r = gt.distancia_ate(gt.Catalogo(tmp_path / "c.yaml"), "limite_uc", "pontos")
+    assert r["feicoes"][0]["feicao"] == "feição 0"
+
+
+def test_busca_e_importacao_normalizam_codigo_decimal_igual():
+    from geotools.catalogo import _normalizar
+    assert _normalizar(3.0) == _normalizar("3") == "3"

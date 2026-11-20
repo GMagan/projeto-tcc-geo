@@ -66,6 +66,8 @@ def uso_solo_por_area(cat: gt.Catalogo, alvos: dict[str, tuple[str, str]]) -> di
     for nome, (camada, feicao) in alvos.items():
         try:
             saida[nome] = gt.uso_solo_na_area(cat, camada, feicao)
+            if aviso := saida[nome].get("aviso_cobertura"):
+                print(f"aviso: {nome}: {aviso}")
         except gt.ErroGeo as erro:
             print(f"aviso: {nome} sem uso do solo: {erro}")
     return saida

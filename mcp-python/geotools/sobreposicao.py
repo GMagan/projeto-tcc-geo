@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
+import pandas as pd
 import shapely
 from pyproj import CRS
 from shapely.geometry import Point
@@ -21,7 +22,7 @@ def distancia_ate(
         raise ErroGeo(f"a camada '{camada_destino}' não tem feições para medir a distância")
     campo = cat.meta(camada_destino).get("campo_sigla") or cat.meta(camada_destino).get("campo_nome")
     feicoes = [
-        {"feicao": str(linha[campo]) if campo and campo in destino and linha[campo] else f"feição {i}",
+        {"feicao": str(linha[campo]) if campo and campo in destino and pd.notna(linha[campo]) and str(linha[campo]).strip() else f"feição {i}",
          "distancia_m": round(float(origem.distance(linha.geometry)), 2)}
         for i, (_, linha) in enumerate(destino.iterrows())
     ]

@@ -15,6 +15,7 @@ def test_perguntas_cobrem_so_o_que_existe_e_todas_tem_resposta_calculavel(cat):
         assert zona in texto
     assert "Zona de Preservação" in texto  # inexistente na UC sintética: pergunta de robustez
     assert any("rodovias" in p["pergunta"] for p in perguntas)  # camada de linhas fornecida
+    assert {"rvf_condicao", "rvf_entorno", "rvf_sem_recursos"} <= set(ids)  # tópico 4.1
     for p in perguntas:
         skill = carregar_skill(p["skill"])
         assert set(p["tools"]) <= set(skill["tools"]), p["id"]  # a skill autoriza a tool cobrada
@@ -37,3 +38,10 @@ def test_zona_do_ponto_e_zona_inexistente_sao_julgadas_pela_resposta(cat):
     assert julgar(ponto, rastro("O ponto cai na ZXX."), [], True)["acertou_valores"] is False
     assert julgar(ausente, rastro("Essa zona não existe nesta UC."), [], True)["acertou_valores"] is True
     assert julgar(ausente, rastro("Ela tem 30,5 ha."), [], True)["acertou_valores"] is False
+
+
+def test_caminho_com_ponto_no_nome_da_classe():
+    from rodar_agente import valor_no_caminho
+    r = {"classes": [{"classe": "Form. Florestal", "area_ha": 12.5}]}
+    assert valor_no_caminho(r, "classes.Form. Florestal.area_ha") == 12.5
+    assert valor_no_caminho({"area_ha": 3}, "area_ha") == 3
